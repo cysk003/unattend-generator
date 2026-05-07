@@ -64,7 +64,8 @@ public record class GeneratePESettings(
   bool Disable8Dot3Names,
   bool PauseBeforeFormatting,
   bool PauseBeforeReboot,
-  bool CompactOs
+  bool CompactOs,
+  bool SkipIntegrityCheck
 ) : ICmdPESettings;
 
 public record class ScriptPESetttings(
@@ -478,12 +479,12 @@ class DiskModifier(ModifierContext context) : Modifier(context)
 
     writer.WriteLine($"""
       call :print "Applying Windows image to target disk"
-      dism.exe /Apply-Image /ImageFile:%IMAGE_FILE% %SWM_PARAM% %IMG_PARAM% /ApplyDir:{windowsDrive}:\ {(pe.CompactOs ? "/Compact " : "")}/CheckIntegrity /Verify || call :fail "dism.exe encountered an error."
+      dism.exe /Apply-Image /ImageFile:%IMAGE_FILE% %SWM_PARAM% %IMG_PARAM% /ApplyDir:{windowsDrive}:\{(pe.CompactOs ? " /Compact" : "")}{(pe.SkipIntegrityCheck ? "" : " /CheckIntegrity /Verify")} || call :fail "dism.exe encountered an error."
 
       call :print "Making system partition bootable"
       bcdboot.exe {windowsDrive}:\Windows /s {bootDrive}: || call :fail "bcdboot.exe encountered an error."
       """);
-    
+
     {
       void DeleteWinRE()
       {
@@ -625,7 +626,7 @@ class DiskModifier(ModifierContext context) : Modifier(context)
 
     writer.WriteLine($"""
       call :print "Computer will now reboot"
-      {(pe.PauseBeforeReboot ? "pause": "")}
+      {(pe.PauseBeforeReboot ? "pause" : "")}
       wpeutil.exe reboot
       goto :eof
 
